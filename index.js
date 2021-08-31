@@ -1,13 +1,13 @@
 const express = require('express');
 const ejs = require('ejs');
 const bodyParser = require('body-parser');
-const port = 8000;
+const port = process.env.PORT || 8000;
 const index = "";
 const app = express();
 // Setting up express
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static('public'))
+app.use(express.static('public'));
 app.set('view engine', 'ejs');
 app.use(express.json());
 app.get('/', function(req, res) {
