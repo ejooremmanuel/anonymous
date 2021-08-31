@@ -1,0 +1,40 @@
+* {
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Montserrat', sans-serif;
+}
+
+.navbar-brand>img {
+    width: 100px;
+}
+
+.msg-form {
+    margin-top: 100px;
+}
+
+.message-holder {
+    width: 70vw;
+}
+
+.card {
+    width: 70%;
+    margin: 10px auto;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    transition: all 0.5s ease;
+}
+
+.card:hover {
+    transform: translateY(-10px);
+}
+
+@media screen and (max-width: 768px) {
+    .message-holder {
+        width: 90vw;
+    }
+    .card {
+        width: 100%;
+    }
+}
