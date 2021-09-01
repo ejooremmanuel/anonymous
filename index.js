@@ -12,15 +12,18 @@ mongoose.connect('mongodb://localhost/waaw')
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static('public'));
+app.locals.moment = require('moment');
 
 app.set('view engine', 'ejs');
 
 // Routes // endpoints
 
-app.get('/', function(req, res) {
-    res.render('index');
+app.get('/', async(req, res) => {
+    let allMessages = await Message.find({}).sort({ _id: -1 });
+    res.render('index', { messages: allMessages });
 });
 app.get('/about', function(req, res) {
+
     res.render("about");
 });
 app.get('/contact', function(req, res) {
@@ -38,7 +41,7 @@ app.post('/message/create-message', function(req, res) {
     });
 
     newMessage.save()
-        .then((data) => { console.log("Message saved successfully", data) })
+        .then(() => { console.log("Message saved successfully") })
         .catch((err) => { console.log("Error creating message"), err });
     res.redirect('/');
 
