@@ -7,6 +7,21 @@ body {
     font-family: 'Montserrat', sans-serif;
 }
 
+
+/* Registration Page */
+
+.register-form {
+    width: 60%;
+    transform: translate(-50%, -50%);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+}
+
+.register-form form input {
+    width: 70%;
+}
+
 .navbar-brand>img {
     width: 100px;
 }
@@ -30,11 +45,25 @@ body {
     transform: translateY(-10px);
 }
 
+.hide-me {
+    width: 70%;
+}
+
 @media screen and (max-width: 768px) {
     .message-holder {
         width: 90vw;
     }
     .card {
+        width: 100%;
+    }
+    .register-form {
+        width: 100%;
+        padding: 0 20px;
+    }
+    .register-form form input {
+        width: 100%;
+    }
+    .hide-me {
         width: 100%;
     }
 }

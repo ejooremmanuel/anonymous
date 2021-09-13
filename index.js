@@ -1,16 +1,25 @@
 const globalVariables = require('./config/configuration').globalVariables;
+const { isLoggedIn } = require('./config/authorization')
 const express = require('express');
 const ejs = require('ejs');
 const port = process.env.PORT || 8000;
 const app = express();
+const auth = require('./middlewares/routeauth');
+const randomstring = require('randomstring');
+//Models
 const mongoose = require('mongoose');
 const Message = require('./models/message');
+const User = require('./models/user');
+const Campaign = require('./models/campaign');
 const session = require('express-session');
 const cookieParser = require('cookie-parser');
 const MongoStore = require('connect-mongo');
 const flash = require('connect-flash');
-const logger = require('morgan')
-    //db connection
+const logger = require('morgan');
+const bcrypt = require('bcryptjs');
+const passport = require('passport');
+const LocalStrategy = require('passport-local').Strategy;
+//db connection
 mongoose.connect('mongodb://localhost/waaw')
     .then(db => console.log('Database connection successful'))
     .catch(error => console.log('Database connection error:', error.message))
@@ -31,11 +40,46 @@ app.use(session({
     saveUninitialized: true,
     cookie: { maxAge: Date.now() + 3600000 },
     store: MongoStore.create({
-        mongoUrl: 'mongodb://localhost/waaw'
+        mongoUrl: 'mongodb://localhost/waaw',
+        ttl: 14 * 24 * 60 * 60
     })
 }));
 
-app.use(flash())
+//initialize and use passport
+app.use(passport.initialize());
+app.use(passport.session());
+
+passport.use(new LocalStrategy({ usernameField: 'email', passReqToCallback: true }, async(req, email, password, done) => {
+    await User.findOne({ email })
+        .then(async(user) => {
+            if (!user) {
+                return done(null, false, req.flash('error-message', "This email doesn't exist. Please use a correct email address."));
+            }
+            bcrypt.compare(password, user.password, (err, passwordMatch) => {
+                if (err) {
+                    return err;
+                }
+                if (!passwordMatch) return done(null, false, req.flash('error-message', 'Wrong pasword. Please check your password and try again.'));
+
+                return done(null, user, req.flash('success-message', 'Login Successful.'));
+            });
+
+
+        })
+
+}));
+passport.serializeUser((user, done) => {
+    done(null, user.id)
+})
+
+passport.deserializeUser((id, done) => {
+    User.findById(id, (err, user) => {
+
+        done(err, user);
+    })
+})
+
+app.use(flash());
 
 //Use Global variables
 app.use(globalVariables)
@@ -43,17 +87,8 @@ app.use(globalVariables)
 // Routes // endpoints
 
 app.get('/', async(req, res) => {
-    let allMessages = await Message.find({}).sort({ _id: -1 });
-    res.render('index', { messages: allMessages });
+    res.redirect('/user/login');
 
-});
-
-app.get('/about', function(req, res) {
-
-    res.render("about");
-});
-app.get('/contact', function(req, res) {
-    res.send("The Contact Page");
 });
 
 app.post('/message/create-message', async(req, res) => {
@@ -69,12 +104,12 @@ app.post('/message/create-message', async(req, res) => {
     await newMessage.save()
         .then(() => {
             req.flash('success-message', 'Message Successfully Created!')
-            res.redirect('/');
+            return res.redirect('/');
         })
         .catch((err) => {
             if (err) {
                 req.flash('error-message', err.message)
-                res.redirect('/')
+                return res.redirect('/')
             }
 
         })
@@ -89,11 +124,112 @@ app.get('/message/delete-message/:messageId', async(req, res) => {
         return res.redirect('back');
     }
     req.flash('success-message', 'Message deleted successfully')
-    res.redirect('/')
+    return res.redirect('/');
 });
 
+//User registration route
+
+app.get('/user/register', (req, res) => {
+    res.render('register')
+
+});
+
+app.post('/user/register', async(req, res) => {
+
+    const { fullname, email, password, confirmPassword } = req.body;
+
+    if (password !== confirmPassword) {
+        req.flash('error-message', 'Passwords do not match')
+        return res.redirect('back')
+    }
+
+    const emailExists = await User.findOne({ email });
+    if (emailExists) {
+        req.flash('error-message', 'Email already taken. Please use a different Email Address.')
+        return res.redirect('back')
+    }
+    const salt = await bcrypt.genSalt();
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = new User({
+        fullname,
+        email,
+        password: hashedPassword
+    });
+
+    await user.save()
+        .then(() => {
+            req.flash('success-message', 'Registration Successful. You can login.')
+            return res.redirect('/user/login')
+        }).catch(() => {
+            req.flash('error-message', 'Problem creating account')
+            return res.redirect('back')
+        });
+});
+
+app.get('/user/login', (req, res) => {
+    if (req.user) {
+        return res.redirect('/user/profile')
+    }
+    res.render('login')
+});
+
+app.post('/user/login', passport.authenticate('local', {
+        successRedirect: '/user/profile',
+        failureRedirect: '/user/login',
+        failureFlash: true,
+        successFlash: true,
+        session: true
+    })
 
 
+);
+
+app.get('/user/profile', auth, async(req, res) => {
+    const userCampaigns = await Campaign.find({ user: req.user._id }).populate('user');
+    res.render('profile', { userCampaigns });
+
+});
+
+app.get('/campaign/create-campaign', auth, (req, res) => {
+    res.render('campaign');
+})
+
+app.post('/campaign/create-campaign', isLoggedIn, async(req, res) => {
+    const loggedInUser = req.user;
+    const { title } = req.body;
+    const campLink = `${req.headers.origin}/campaign/single-campaign/${randomstring.generate()}`
+    const newCampaign = new Campaign({
+        title,
+        user: loggedInUser._id,
+        link: campLink
+    });
+    await newCampaign.save();
+    if (!newCampaign) {
+        req.flash('error-message', 'An error occured while creating campaign.');
+        return res.redirect('back')
+    }
+
+    req.flash('success-message', 'Campaign created successfully.');
+    return res.redirect('/user/profile')
+})
+
+app.get('/campaign/single-campaign/:campaignId', async(req, res) => {
+    const singleCampaign = await Campaign.findOne({ link: `http://localhost:8000/campaign/single-campaign/${req.params.campaignId}` }).populate('user');
+    if (!singleCampaign) {
+        req.flash('error-message', '<b>Error</b> Invalid campaign link!')
+        return res.redirect('/')
+    } else {
+        res.render('campaignmessages', { singleCampaign })
+    }
+
+})
+
+app.get('/logout', function(req, res) {
+    req.logout();
+    req.flash('success-message', 'You have logged out successfully!')
+    return res.redirect('/user/login');
+});
 
 app.listen(port, function() {
     console.log(`Server running on port ${port}`);
