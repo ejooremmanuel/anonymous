@@ -91,11 +91,12 @@ app.get('/', async(req, res) => {
 
 });
 
-app.post('/message/create-message', async(req, res) => {
+app.post('/message/create-message/:id', async(req, res) => {
+
     let { message } = req.body;
     if (!message) {
         req.flash('error-message', 'Field cannot be empty');
-        return res.redirect('/')
+        return res.redirect('/user/login')
     }
 
     let newMessage = new Message({
@@ -103,16 +104,19 @@ app.post('/message/create-message', async(req, res) => {
     });
     await newMessage.save()
         .then(() => {
-            req.flash('success-message', 'Message Successfully Created!')
-            return res.redirect('/');
+            req.flash('success-message', 'Your message has been sent successfully.')
+            return res.redirect('back');
         })
         .catch((err) => {
             if (err) {
                 req.flash('error-message', err.message)
-                return res.redirect('/')
+                return res.redirect('back')
             }
 
         })
+    const filter = { _id: req.params.id };
+    const update = { $push: { messages: newMessage._id } };
+    await Campaign.updateOne(filter, update, { upsert: true });
 
 });
 
@@ -186,7 +190,7 @@ app.post('/user/login', passport.authenticate('local', {
 );
 
 app.get('/user/profile', auth, async(req, res) => {
-    const userCampaigns = await Campaign.find({ user: req.user._id }).populate('user');
+    const userCampaigns = await Campaign.find({ user: req.user._id }).populate('user messages');
     res.render('profile', { userCampaigns });
 
 });
@@ -217,9 +221,10 @@ app.post('/campaign/create-campaign', isLoggedIn, async(req, res) => {
 app.get('/campaign/single-campaign/:campaignId', async(req, res) => {
     const singleCampaign = await Campaign.findOne({ link: `http://localhost:8000/campaign/single-campaign/${req.params.campaignId}` }).populate('user');
     if (!singleCampaign) {
-        req.flash('error-message', '<b>Error</b> Invalid campaign link!')
-        return res.redirect('/')
+        req.flash('error-message', '<b>Error:</b> Invalid campaign link! Please check the link and try again.');
+        return res.redirect('/user/login')
     } else {
+
         res.render('campaignmessages', { singleCampaign })
     }
 

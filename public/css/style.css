@@ -31,7 +31,7 @@ body {
 }
 
 .message-holder {
-    width: 70vw;
+    display: inline;
 }
 
 .card {
