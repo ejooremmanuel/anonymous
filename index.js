@@ -92,7 +92,6 @@ app.get('/', async(req, res) => {
 });
 
 app.post('/message/create-message/:id', async(req, res) => {
-
     let { message } = req.body;
     if (!message) {
         req.flash('error-message', 'Field cannot be empty');
@@ -104,7 +103,7 @@ app.post('/message/create-message/:id', async(req, res) => {
     });
     await newMessage.save()
         .then(() => {
-            req.flash('success-message', 'Your message has been sent successfully.')
+            req.flash('success-message', 'Your message has been sent.')
             return res.redirect('back');
         })
         .catch((err) => {
