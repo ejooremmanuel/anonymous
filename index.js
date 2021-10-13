@@ -22,9 +22,7 @@ const passport = require("passport");
 const LocalStrategy = require("passport-local").Strategy;
 //db connection
 mongoose
-  .connect(
-    "https://mongodb+srv://ejoor-admin:genius%4022@cluster0.iocp2.mongodb.net/anonymous2021?retryWrites=true&w=majority"
-  )
+  .connect(process.env.DB_URL)
   .then((db) => console.log("Database connection successful"))
   .catch((error) => console.log("Database connection error:", error.message));
 // Setting up express
