@@ -212,6 +212,7 @@ app.post(
 );
 
 app.get("/user/profile", auth, async (req, res) => {
+  console.log(req.headers);
   const userCampaigns = await Campaign.find({ user: req.user._id }).populate(
     "user messages"
   );
@@ -223,6 +224,7 @@ app.get("/campaign/create-campaign", auth, (req, res) => {
 });
 
 app.post("/campaign/create-campaign", isLoggedIn, async (req, res) => {
+  console.log(req.headers);
   const loggedInUser = req.user;
   const { title } = req.body;
   const campLink = `${
@@ -245,7 +247,7 @@ app.post("/campaign/create-campaign", isLoggedIn, async (req, res) => {
 
 app.get("/campaign/single-campaign/:campaignId", async (req, res) => {
   const singleCampaign = await Campaign.findOne({
-    link: `http://localhost:8000/campaign/single-campaign/${req.params.campaignId}`,
+    link: `${req.headers.host}/campaign/single-campaign/${req.params.campaignId}`,
   }).populate("user");
   if (!singleCampaign) {
     req.flash(
